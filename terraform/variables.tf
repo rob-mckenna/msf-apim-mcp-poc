@@ -22,16 +22,22 @@ variable "apim_publisher_email" {
   default     = "admin@example.com"
 }
 
-variable "ai_foundry_hub_name" {
-  description = "Name for the Azure AI Foundry Hub workspace."
+variable "foundry_resource_name" {
+  description = "Base name for the Microsoft Foundry resource (AIServices account)."
   type        = string
-  default     = "aif-hub-mcp-poc"
+  default     = "aifoundry-mcp-poc"
 }
 
-variable "ai_foundry_project_name" {
-  description = "Name for the Azure AI Foundry Project workspace."
+variable "foundry_project_name" {
+  description = "Name for the Microsoft Foundry Project."
   type        = string
-  default     = "aif-proj-mcp-poc"
+  default     = "mcp-poc-project"
+}
+
+variable "enable_apim_mcp_servers" {
+  description = "Enable APIM MCP server resources (requires Microsoft.ApiManagement/service/mcpServers availability in your subscription/region)."
+  type        = bool
+  default     = false
 }
 
 variable "tags" {

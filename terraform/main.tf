@@ -8,11 +8,6 @@ resource "random_string" "suffix" {
 }
 
 # ---------------------------------------------------------------------------
-# Current Azure client configuration (tenant/subscription)
-# ---------------------------------------------------------------------------
-data "azurerm_client_config" "current" {}
-
-# ---------------------------------------------------------------------------
 # Resource Group
 # ---------------------------------------------------------------------------
 resource "azurerm_resource_group" "main" {
@@ -22,43 +17,27 @@ resource "azurerm_resource_group" "main" {
 }
 
 # ---------------------------------------------------------------------------
-# Storage Account – required by Azure AI Foundry Hub
-# Name must be globally unique, max 24 chars, lowercase alphanumeric only.
+# Microsoft Foundry resource (AIServices account)
+# Uses the project-first model instead of legacy hub-based deployment.
 # ---------------------------------------------------------------------------
-resource "azurerm_storage_account" "ai_foundry" {
-  name                     = "staifdry${random_string.suffix.result}"
-  resource_group_name      = azurerm_resource_group.main.name
-  location                 = azurerm_resource_group.main.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  tags                     = var.tags
-}
+resource "azapi_resource" "foundry" {
+  type      = "Microsoft.CognitiveServices/accounts@2025-06-01"
+  name      = "${var.foundry_resource_name}-${random_string.suffix.result}"
+  parent_id = azurerm_resource_group.main.id
+  location  = azurerm_resource_group.main.location
+  tags     = var.tags
+  schema_validation_enabled = false
 
-# ---------------------------------------------------------------------------
-# Key Vault – required by Azure AI Foundry Hub
-# ---------------------------------------------------------------------------
-resource "azurerm_key_vault" "ai_foundry" {
-  name                       = "kv-aif-${random_string.suffix.result}"
-  resource_group_name        = azurerm_resource_group.main.name
-  location                   = azurerm_resource_group.main.location
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-  purge_protection_enabled   = false
-  tags                       = var.tags
-}
-
-# ---------------------------------------------------------------------------
-# Azure AI Foundry Hub
-# Provides the central workspace for all AI Foundry projects.
-# ---------------------------------------------------------------------------
-resource "azurerm_ai_foundry" "hub" {
-  name                = var.ai_foundry_hub_name
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  storage_account_id  = azurerm_storage_account.ai_foundry.id
-  key_vault_id        = azurerm_key_vault.ai_foundry.id
-  tags                = var.tags
+  body = {
+    kind = "AIServices"
+    sku = {
+      name = "S0"
+    }
+    properties = {
+      allowProjectManagement = true
+      customSubDomainName    = "${var.foundry_resource_name}-${random_string.suffix.result}"
+    }
+  }
 
   identity {
     type = "SystemAssigned"
@@ -66,15 +45,20 @@ resource "azurerm_ai_foundry" "hub" {
 }
 
 # ---------------------------------------------------------------------------
-# Azure AI Foundry Project
-# A logical container for AI assets (models, datasets, deployments) within
-# the Foundry Hub.
+# Microsoft Foundry Project
+# Child resource under the Microsoft Foundry resource.
 # ---------------------------------------------------------------------------
-resource "azurerm_ai_foundry_project" "project" {
-  name               = var.ai_foundry_project_name
-  location           = azurerm_ai_foundry.hub.location
-  ai_services_hub_id = azurerm_ai_foundry.hub.id
-  tags               = var.tags
+resource "azapi_resource" "foundry_project" {
+  type      = "Microsoft.CognitiveServices/accounts/projects@2025-06-01"
+  name      = var.foundry_project_name
+  parent_id = azapi_resource.foundry.id
+  location  = azurerm_resource_group.main.location
+  tags      = var.tags
+  schema_validation_enabled = false
+
+  body = {
+    properties = {}
+  }
 
   identity {
     type = "SystemAssigned"

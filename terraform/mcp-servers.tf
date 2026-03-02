@@ -27,6 +27,7 @@
 #   https://<apim-gateway>/weather-mcp/mcp
 # ---------------------------------------------------------------------------
 resource "azapi_resource" "weather_mcp_server" {
+  count     = var.enable_apim_mcp_servers ? 1 : 0
   type      = "Microsoft.ApiManagement/service/mcpServers@2025-03-01-preview"
   name      = "weather-mcp"
   parent_id = azurerm_api_management.main.id
@@ -65,6 +66,7 @@ resource "azapi_resource" "weather_mcp_server" {
 #   https://<apim-gateway>/products-mcp/mcp
 # ---------------------------------------------------------------------------
 resource "azapi_resource" "products_mcp_server" {
+  count     = var.enable_apim_mcp_servers ? 1 : 0
   type      = "Microsoft.ApiManagement/service/mcpServers@2025-03-01-preview"
   name      = "products-mcp"
   parent_id = azurerm_api_management.main.id

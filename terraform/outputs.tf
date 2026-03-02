@@ -24,31 +24,31 @@ output "products_api_url" {
 }
 
 output "weather_mcp_endpoint" {
-  description = "MCP server endpoint for the Weather API. AI agents connect here using the Model Context Protocol."
-  value       = "${azurerm_api_management.main.gateway_url}/weather-mcp/mcp"
+  description = "MCP server endpoint for the Weather API when APIM MCP servers are enabled; otherwise null."
+  value       = var.enable_apim_mcp_servers ? "${azurerm_api_management.main.gateway_url}/weather-mcp/mcp" : null
 }
 
 output "products_mcp_endpoint" {
-  description = "MCP server endpoint for the Products API. AI agents connect here using the Model Context Protocol."
-  value       = "${azurerm_api_management.main.gateway_url}/products-mcp/mcp"
+  description = "MCP server endpoint for the Products API when APIM MCP servers are enabled; otherwise null."
+  value       = var.enable_apim_mcp_servers ? "${azurerm_api_management.main.gateway_url}/products-mcp/mcp" : null
 }
 
-output "ai_foundry_hub_id" {
-  description = "Resource ID of the Azure AI Foundry Hub workspace."
-  value       = azurerm_ai_foundry.hub.id
+output "foundry_resource_id" {
+  description = "Resource ID of the Microsoft Foundry resource (AIServices account)."
+  value       = azapi_resource.foundry.id
 }
 
-output "ai_foundry_project_id" {
-  description = "Resource ID of the Azure AI Foundry Project."
-  value       = azurerm_ai_foundry_project.project.id
+output "foundry_project_id" {
+  description = "Resource ID of the Microsoft Foundry Project."
+  value       = azapi_resource.foundry_project.id
 }
 
-output "ai_foundry_hub_name" {
-  description = "Name of the Azure AI Foundry Hub workspace."
-  value       = azurerm_ai_foundry.hub.name
+output "foundry_resource_name" {
+  description = "Name of the Microsoft Foundry resource."
+  value       = azapi_resource.foundry.name
 }
 
-output "ai_foundry_project_name" {
-  description = "Name of the Azure AI Foundry Project."
-  value       = azurerm_ai_foundry_project.project.name
+output "foundry_project_name" {
+  description = "Name of the Microsoft Foundry Project."
+  value       = azapi_resource.foundry_project.name
 }

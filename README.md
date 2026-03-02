@@ -9,8 +9,8 @@ This repository contains Terraform infrastructure-as-code that provisions:
 | Resource | Description |
 |---|---|
 | **Azure Resource Group** | Container for all POC resources |
-| **Azure AI Foundry Hub** | Central hub workspace for AI Foundry (`azurerm_ai_foundry`) |
-| **Azure AI Foundry Project** | AI project workspace linked to the hub (`azurerm_ai_foundry_project`) |
+| **Microsoft Foundry Resource** | AI services account (`Microsoft.CognitiveServices/accounts`) used as the parent for Foundry projects |
+| **Microsoft Foundry Project** | Project workspace (`Microsoft.CognitiveServices/accounts/projects`) for AI assets and deployments |
 | **Azure API Management (Standard v2)** | APIM gateway hosting the mock APIs and MCP servers |
 | **Weather API** | Mock REST API with two operations and static JSON responses |
 | **Products API** | Mock REST API with two operations and static JSON responses |
@@ -21,36 +21,38 @@ This repository contains Terraform infrastructure-as-code that provisions:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Azure Resource Group                      │
+│                    Azure Resource Group                     │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │         Azure AI Foundry Hub                         │   │
-│  │   ┌─────────────────────────────────────────────┐   │   │
-│  │   │       Azure AI Foundry Project               │   │   │
-│  │   └─────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │               Microsoft Foundry Resource              │  │
+│  │   ┌───────────────────────────────────────────────┐   │  │
+│  │   │             Microsoft Foundry Project         │   │  │
+│  │   └───────────────────────────────────────────────┘   │  │
+│  └───────────────────────────────────────────────────────┘  │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │      Azure API Management (Standard v2)              │   │
-│  │                                                     │   │
-│  │  ┌──────────────┐    ┌──────────────────────────┐  │   │
-│  │  │ Weather API  │    │ Weather MCP Server        │  │   │
-│  │  │ GET /current │───▶│ /weather-mcp/mcp          │  │   │
-│  │  │ GET /forecast│    │                           │  │   │
-│  │  └──────────────┘    └──────────────────────────┘  │   │
-│  │                                                     │   │
-│  │  ┌──────────────┐    ┌──────────────────────────┐  │   │
-│  │  │ Products API │    │ Products MCP Server       │  │   │
-│  │  │ GET /        │───▶│ /products-mcp/mcp         │  │   │
-│  │  │ GET /{id}    │    │                           │  │   │
-│  │  └──────────────┘    └──────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │         Azure API Management (Standard v2)            │  │
+│  │                                                       │  │
+│  │  ┌──────────────┐    ┌────────────────────────────┐   │  │
+│  │  │ Weather API  │    │      Weather MCP Server    │   │  │
+│  │  │ GET /current │--->│      /weather-mcp/mcp      │   │  │
+│  │  │ GET /forecast│    │                            │   │  │
+│  │  └──────────────┘    └────────────────────────────┘   │  │
+│  │                                                       │  │
+│  │  ┌──────────────┐    ┌────────────────────────────┐   │  │
+│  │  │ Products API │    │      Products MCP Server   │   │  │
+│  │  │ GET /        │--->│      /products-mcp/mcp     │   │  │
+│  │  │ GET /{id}    │    │                            │   │  │
+│  │  └──────────────┘    └────────────────────────────┘   │  │
+│  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Mock API Responses
 
-Both APIs use APIM `<return-response>` policies to serve static JSON. No backend services are required.
+Both APIs use APIM `<mock-response>` policies to return operation response examples as mock JSON payloads. No backend services are required.
+
+> **Tip:** For consistent APIM mock-response behavior, set operation response examples to the `default` example name for each `200 application/json` representation.
 
 ### Weather API
 
@@ -157,7 +159,7 @@ terraform plan
 terraform apply
 ```
 
-> **Note:** APIM Standard v2 provisioning takes approximately 5–10 minutes. AI Foundry Hub provisioning takes approximately 5 minutes.
+> **Note:** APIM Standard v2 provisioning takes approximately 5–10 minutes. Microsoft Foundry resource and project provisioning typically takes several minutes.
 
 ### 5. Retrieve outputs
 
@@ -172,8 +174,8 @@ Key outputs:
 | `apim_gateway_url` | Base URL of the APIM gateway |
 | `weather_mcp_endpoint` | MCP endpoint for the Weather API |
 | `products_mcp_endpoint` | MCP endpoint for the Products API |
-| `ai_foundry_hub_id` | Resource ID of the AI Foundry Hub |
-| `ai_foundry_project_id` | Resource ID of the AI Foundry Project |
+| `foundry_resource_id` | Resource ID of the Microsoft Foundry resource |
+| `foundry_project_id` | Resource ID of the Microsoft Foundry Project |
 
 ### 6. Test the mock APIs
 
@@ -214,17 +216,70 @@ Example `.vscode/mcp.json` for VS Code with GitHub Copilot (Agent Mode):
 
 Replace `<apim-name>` with the value from `terraform output apim_service_name`.
 
-## Customisation
+## APIM MCP Server Availability
+
+The APIM MCP server ARM resource type (`Microsoft.ApiManagement/service/mcpServers`) is preview/limited and might not be available in all subscriptions or regions.
+
+This repo uses `enable_apim_mcp_servers` to control MCP server resource creation:
+
+- `false` (default): deploys APIM + REST APIs only, and MCP endpoint outputs are `null`.
+- `true`: attempts to create APIM MCP server resources via Terraform.
+
+Check availability before enabling:
+
+```bash
+az provider show -n Microsoft.ApiManagement --query "resourceTypes[?resourceType=='service/mcpServers']" -o json
+```
+
+If the command returns a non-empty array, set `enable_apim_mcp_servers = true` in `terraform.tfvars` and run `terraform apply`.
+
+## Create MCP Servers in APIM
+
+If `service/mcpServers` isn't available to Terraform in your tenant, create MCP servers directly in APIM.
+
+### Option A: Terraform-managed (when available)
+
+1. Set `enable_apim_mcp_servers = true` in `terraform.tfvars`.
+2. Run `terraform apply`.
+3. Confirm outputs `weather_mcp_endpoint` and `products_mcp_endpoint` are populated.
+
+### Option B: APIM portal (manual)
+
+1. Open your API Management instance in Azure portal.
+2. In APIM, navigate to the MCP server experience (under AI gateway / MCP servers).
+3. Create MCP server `weather-mcp`:
+  - Source API: `weather-api`
+  - Include operations: `get-current-weather`, `get-weather-forecast`
+4. Create MCP server `products-mcp`:
+  - Source API: `products-api`
+  - Include operations: `list-products`, `get-product-by-id`
+5. Save/publish each MCP server and verify endpoints:
+  - `https://<apim-name>.azure-api.net/weather-mcp/mcp`
+  - `https://<apim-name>.azure-api.net/products-mcp/mcp`
+6. Update your MCP client config (`.vscode/mcp.json`) with those endpoint URLs.
+
+## Customization
 
 Override defaults in a `terraform.tfvars` file (not committed – see `.gitignore`):
+
+Start by copying `terraform/terraform.tfvars.example` to `terraform.tfvars` and then update values as needed.
+
+```bash
+# PowerShell
+Copy-Item terraform.tfvars.example terraform.tfvars
+
+# bash
+cp terraform.tfvars.example terraform.tfvars
+```
 
 ```hcl
 location                = "uksouth"
 resource_group_name     = "rg-my-poc"
 apim_publisher_email    = "me@mycompany.com"
 apim_publisher_name     = "My Company"
-ai_foundry_hub_name     = "my-ai-hub"
-ai_foundry_project_name = "my-ai-project"
+foundry_resource_name   = "my-foundry"
+foundry_project_name    = "my-foundry-project"
+enable_apim_mcp_servers = false
 tags = {
   environment = "dev"
   owner       = "team-name"
@@ -243,7 +298,7 @@ terraform destroy
 terraform/
 ├── providers.tf      # Provider configuration (azurerm ~> 4.0, azapi ~> 2.0, random ~> 3.0)
 ├── variables.tf      # Input variables with defaults
-├── main.tf           # Core infrastructure: RG, Storage, Key Vault, AI Foundry Hub & Project, APIM
+├── main.tf           # Core infrastructure: RG, Microsoft Foundry resource + project, APIM
 ├── apis.tf           # Weather API and Products API with mock response policies
 ├── mcp-servers.tf    # MCP server resources (azapi_resource – preview ARM feature)
 └── outputs.tf        # Key resource outputs
@@ -251,6 +306,6 @@ terraform/
 
 ## Provider Notes
 
-- **`hashicorp/azurerm ~> 4.0`** – used for all stable Azure resources including `azurerm_ai_foundry` and `azurerm_ai_foundry_project` (added in 4.3.x / 4.4.x).
-- **`Azure/azapi ~> 2.0`** – used for `Microsoft.ApiManagement/service/mcpServers` which is a preview feature not yet available in the azurerm provider.
-- **`hashicorp/random ~> 3.0`** – generates a short suffix for globally unique resource names (storage account, Key Vault, APIM).
+- **`hashicorp/azurerm ~> 4.0`** – used for stable Azure resources such as Resource Group and API Management.
+- **`Azure/azapi ~> 2.0`** – used for `Microsoft.CognitiveServices/accounts`, `Microsoft.CognitiveServices/accounts/projects`, and `Microsoft.ApiManagement/service/mcpServers`.
+- **`hashicorp/random ~> 3.0`** – generates a short suffix for globally unique resource names (Foundry resource, APIM).

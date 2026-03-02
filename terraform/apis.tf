@@ -45,7 +45,7 @@ resource "azurerm_api_management_api_operation" "weather_current" {
     representation {
       content_type = "application/json"
       example {
-        name = "London"
+        name = "default"
         value = jsonencode({
           location = {
             name    = "London"
@@ -72,7 +72,7 @@ resource "azurerm_api_management_api_operation" "weather_current" {
   }
 }
 
-# Mock policy: returns a static weather response for any location query.
+# Mock policy: returns the configured operation response example.
 resource "azurerm_api_management_api_operation_policy" "weather_current" {
   operation_id        = azurerm_api_management_api_operation.weather_current.operation_id
   api_name            = azurerm_api_management_api.weather.name
@@ -83,33 +83,7 @@ resource "azurerm_api_management_api_operation_policy" "weather_current" {
     <policies>
       <inbound>
         <base />
-        <return-response>
-          <set-status code="200" reason="OK" />
-          <set-header name="Content-Type" exists-action="override">
-            <value>application/json</value>
-          </set-header>
-          <set-body>{
-      "location": {
-        "name": "London",
-        "country": "GB",
-        "lat": 51.5074,
-        "lon": -0.1278
-      },
-      "current": {
-        "temperature_c": 15.2,
-        "temperature_f": 59.4,
-        "condition": "Partly cloudy",
-        "humidity": 72,
-        "wind_kph": 14.4,
-        "wind_direction": "SW",
-        "pressure_mb": 1012,
-        "feels_like_c": 13.8,
-        "uv_index": 3,
-        "visibility_km": 10
-      },
-      "last_updated": "2025-01-15 14:00"
-    }</set-body>
-        </return-response>
+        <mock-response status-code="200" content-type="application/json" />
       </inbound>
       <backend>
         <base />
@@ -159,7 +133,7 @@ resource "azurerm_api_management_api_operation" "weather_forecast" {
     representation {
       content_type = "application/json"
       example {
-        name = "London"
+        name = "default"
         value = jsonencode({
           location = "London"
           forecast = [
@@ -173,7 +147,7 @@ resource "azurerm_api_management_api_operation" "weather_forecast" {
   }
 }
 
-# Mock policy: returns a static 3-day forecast.
+# Mock policy: returns the configured operation response example.
 resource "azurerm_api_management_api_operation_policy" "weather_forecast" {
   operation_id        = azurerm_api_management_api_operation.weather_forecast.operation_id
   api_name            = azurerm_api_management_api.weather.name
@@ -184,38 +158,7 @@ resource "azurerm_api_management_api_operation_policy" "weather_forecast" {
     <policies>
       <inbound>
         <base />
-        <return-response>
-          <set-status code="200" reason="OK" />
-          <set-header name="Content-Type" exists-action="override">
-            <value>application/json</value>
-          </set-header>
-          <set-body>{
-      "location": "London",
-      "forecast": [
-        {
-          "date": "2025-01-16",
-          "max_temp_c": 17.0,
-          "min_temp_c": 10.0,
-          "condition": "Sunny",
-          "precipitation_mm": 0.0
-        },
-        {
-          "date": "2025-01-17",
-          "max_temp_c": 14.0,
-          "min_temp_c": 8.0,
-          "condition": "Rainy",
-          "precipitation_mm": 12.5
-        },
-        {
-          "date": "2025-01-18",
-          "max_temp_c": 12.0,
-          "min_temp_c": 7.0,
-          "condition": "Cloudy",
-          "precipitation_mm": 2.0
-        }
-      ]
-    }</set-body>
-        </return-response>
+        <mock-response status-code="200" content-type="application/json" />
       </inbound>
       <backend>
         <base />
@@ -292,7 +235,7 @@ resource "azurerm_api_management_api_operation" "products_list" {
   }
 }
 
-# Mock policy: returns a static product list.
+# Mock policy: returns the configured operation response example.
 resource "azurerm_api_management_api_operation_policy" "products_list" {
   operation_id        = azurerm_api_management_api_operation.products_list.operation_id
   api_name            = azurerm_api_management_api.products.name
@@ -303,38 +246,7 @@ resource "azurerm_api_management_api_operation_policy" "products_list" {
     <policies>
       <inbound>
         <base />
-        <return-response>
-          <set-status code="200" reason="OK" />
-          <set-header name="Content-Type" exists-action="override">
-            <value>application/json</value>
-          </set-header>
-          <set-body>{
-      "total": 3,
-      "products": [
-        {
-          "id": "P001",
-          "name": "Laptop Pro",
-          "category": "Electronics",
-          "price": 1299.99,
-          "in_stock": true
-        },
-        {
-          "id": "P002",
-          "name": "Wireless Mouse",
-          "category": "Electronics",
-          "price": 29.99,
-          "in_stock": true
-        },
-        {
-          "id": "P003",
-          "name": "Office Chair",
-          "category": "Furniture",
-          "price": 349.99,
-          "in_stock": false
-        }
-      ]
-    }</set-body>
-        </return-response>
+        <mock-response status-code="200" content-type="application/json" />
       </inbound>
       <backend>
         <base />
@@ -376,7 +288,7 @@ resource "azurerm_api_management_api_operation" "products_get" {
     representation {
       content_type = "application/json"
       example {
-        name = "P001"
+        name = "default"
         value = jsonencode({
           id          = "P001"
           name        = "Laptop Pro"
@@ -416,7 +328,7 @@ resource "azurerm_api_management_api_operation" "products_get" {
   }
 }
 
-# Mock policy: returns a static product detail response.
+# Mock policy: returns the configured operation response example.
 resource "azurerm_api_management_api_operation_policy" "products_get" {
   operation_id        = azurerm_api_management_api_operation.products_get.operation_id
   api_name            = azurerm_api_management_api.products.name
@@ -427,31 +339,7 @@ resource "azurerm_api_management_api_operation_policy" "products_get" {
     <policies>
       <inbound>
         <base />
-        <return-response>
-          <set-status code="200" reason="OK" />
-          <set-header name="Content-Type" exists-action="override">
-            <value>application/json</value>
-          </set-header>
-          <set-body>{
-      "id": "P001",
-      "name": "Laptop Pro",
-      "category": "Electronics",
-      "price": 1299.99,
-      "in_stock": true,
-      "description": "High-performance laptop with 16GB RAM and 512GB SSD, ideal for professionals.",
-      "specs": {
-        "processor": "Intel Core i7-1260P",
-        "ram_gb": 16,
-        "storage": "512GB NVMe SSD",
-        "display": "15.6-inch FHD IPS",
-        "battery_h": 12
-      },
-      "rating": {
-        "average": 4.5,
-        "count": 238
-      }
-    }</set-body>
-        </return-response>
+        <mock-response status-code="200" content-type="application/json" />
       </inbound>
       <backend>
         <base />

@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars and update values for your environment.
+
+location                = "eastus"
+resource_group_name     = "rg-msf-apim-mcp-poc"
+apim_publisher_name     = "MSF APIM MCP POC"
+apim_publisher_email    = "admin@example.com"
+foundry_resource_name   = "aifoundry-mcp-poc"
+foundry_project_name    = "mcp-poc-project"
+enable_apim_mcp_servers = false
+
+tags = {
+  environment = "poc"
+  project     = "msf-apim-mcp"
+  managed_by  = "terraform"
+}
