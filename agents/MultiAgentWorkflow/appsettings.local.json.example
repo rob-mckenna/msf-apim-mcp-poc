@@ -4,6 +4,9 @@
     "TenantId": "YOUR-TENANT-ID",
     "Deployment": "gpt-4o"
   },
+  "ApplicationInsights": {
+    "ConnectionString": "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
+  },
   "APIM": {
     "GatewayUrl": "https://YOUR-APIM.azure-api.net"
   }

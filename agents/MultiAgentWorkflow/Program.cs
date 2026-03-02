@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.Configuration;
@@ -35,69 +39,103 @@ var apimGatewayUrl = configuration["APIM:GatewayUrl"]
 
 var foundryOpenAIEndpoint = ResolveFoundryOpenAIEndpoint(foundryProjectEndpoint);
 var foundryTenantId = configuration["Foundry:TenantId"];
+var appInsightsConnectionString = configuration["ApplicationInsights:ConnectionString"];
+var telemetryClient = CreateTelemetryClient(appInsightsConnectionString);
 
-// ---------------------------------------------------------------------------
-// Azure OpenAI client
-// Uses DefaultAzureCredential (supports az login, managed identity, env vars).
-// ---------------------------------------------------------------------------
-var openAIClient = new AzureOpenAIClient(
-    foundryOpenAIEndpoint,
-    CreateCredential(foundryTenantId));
+if (telemetryClient is not null)
+{
+    RegisterExceptionTelemetryHandlers(telemetryClient);
+    telemetryClient.TrackEvent(
+        "ApplicationStarted",
+        new Dictionary<string, string>
+        {
+            ["FoundryEndpointHost"] = foundryOpenAIEndpoint.Host,
+            ["ModelDeployment"] = modelDeployment,
+        });
+}
 
-ChatClient chatClient = openAIClient.GetChatClient(modelDeployment);
+try
+{
+    var openAIClient = new AzureOpenAIClient(
+        foundryOpenAIEndpoint,
+        CreateCredential(foundryTenantId));
 
-// ---------------------------------------------------------------------------
-// Individual Agents
-//
-// Each agent connects to its respective APIM MCP server and exposes the
-// server's tools to the underlying LLM for function-calling.
-// ---------------------------------------------------------------------------
-Console.WriteLine("Connecting to APIM MCP servers and creating agents...");
+    ChatClient chatClient = openAIClient.GetChatClient(modelDeployment);
 
-var productsAgent = await ProductsAgent.CreateAsync(chatClient, apimGatewayUrl);
-Console.WriteLine($"  ✓ {productsAgent.Name} ready");
+    Console.WriteLine("Connecting to APIM MCP servers and creating agents...");
+    var setupStopwatch = Stopwatch.StartNew();
 
-var weatherAgent = await WeatherAgent.CreateAsync(chatClient, apimGatewayUrl);
-Console.WriteLine($"  ✓ {weatherAgent.Name} ready");
+    var productsAgent = await ProductsAgent.CreateAsync(chatClient, apimGatewayUrl);
+    Console.WriteLine($"  ✓ {productsAgent.Name} ready");
 
-Console.WriteLine();
+    var weatherAgent = await WeatherAgent.CreateAsync(chatClient, apimGatewayUrl);
+    Console.WriteLine($"  ✓ {weatherAgent.Name} ready");
 
-// ---------------------------------------------------------------------------
-// Demonstrate individual agents
-// ---------------------------------------------------------------------------
-Console.WriteLine("=== Products Agent Demo ===");
-await RunAgentDemoAsync(
-    productsAgent,
-    "What Electronics products are available in the catalog? List them with prices.");
+    setupStopwatch.Stop();
+    telemetryClient?.TrackMetric("AgentSetupDurationMs", setupStopwatch.Elapsed.TotalMilliseconds);
+    telemetryClient?.TrackEvent(
+        "AgentsConnected",
+        new Dictionary<string, string>
+        {
+            ["ProductsAgent"] = productsAgent.Name ?? string.Empty,
+            ["WeatherAgent"] = weatherAgent.Name ?? string.Empty,
+        });
 
-Console.WriteLine();
-Console.WriteLine("=== Weather Agent Demo ===");
-await RunAgentDemoAsync(
-    weatherAgent,
-    "What is the current weather in London? Also give me a 3-day forecast.");
+    Console.WriteLine();
 
-Console.WriteLine();
+    Console.WriteLine("=== Products Agent Demo ===");
+    await RunAgentDemoAsync(
+        productsAgent,
+        "What Electronics products are available in the catalog? List them with prices.",
+        telemetryClient,
+        "ProductsAgentDemo");
 
-// ---------------------------------------------------------------------------
-// Multi-Agent Workflow
-//
-// Uses AgentWorkflowBuilder.BuildSequential to create a workflow where the
-// Products agent and Weather agent run in sequence within the same
-// conversation. Both agents contribute their specialised knowledge to
-// answer a combined query.
-// ---------------------------------------------------------------------------
-Console.WriteLine("=== Multi-Agent Workflow Demo ===");
-Console.WriteLine("Building sequential workflow: ProductsAgent → WeatherAgent");
-Console.WriteLine();
+    Console.WriteLine();
+    Console.WriteLine("=== Weather Agent Demo ===");
+    await RunAgentDemoAsync(
+        weatherAgent,
+        "What is the current weather in London? Also give me a 3-day forecast.",
+        telemetryClient,
+        "WeatherAgentDemo");
 
-Workflow multiAgentWorkflow = AgentWorkflowBuilder.BuildSequential(
-    "ProductsAndWeatherWorkflow",
-    [productsAgent, weatherAgent]);
+    Console.WriteLine();
 
-await RunMultiAgentWorkflowAsync(
-    multiAgentWorkflow,
-    "What Electronics products are available and what is the current weather in London? " +
-    "I want both product and weather information.");
+    Console.WriteLine("=== Multi-Agent Workflow Demo ===");
+    Console.WriteLine("Building sequential workflow: ProductsAgent → WeatherAgent");
+    Console.WriteLine();
+
+    Workflow multiAgentWorkflow = AgentWorkflowBuilder.BuildSequential(
+        "ProductsAndWeatherWorkflow",
+        [productsAgent, weatherAgent]);
+
+    await RunMultiAgentWorkflowAsync(
+        multiAgentWorkflow,
+        "What Electronics products are available and what is the current weather in London? " +
+        "I want both product and weather information.",
+        telemetryClient);
+
+    telemetryClient?.TrackEvent("ApplicationCompleted");
+}
+catch (Exception ex)
+{
+    telemetryClient?.TrackEvent(
+        "ApplicationFailed",
+        new Dictionary<string, string>
+        {
+            ["ExceptionType"] = ex.GetType().Name,
+            ["Message"] = ex.Message,
+        });
+    telemetryClient?.TrackException(ex);
+    throw;
+}
+finally
+{
+    if (telemetryClient is not null)
+    {
+        telemetryClient.Flush();
+        await Task.Delay(2000);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Helper methods
@@ -106,13 +144,26 @@ await RunMultiAgentWorkflowAsync(
 static async Task RunAgentDemoAsync(
     ChatClientAgent agent,
     string userQuery,
+    TelemetryClient? telemetryClient,
+    string scenarioName,
     CancellationToken cancellationToken = default)
 {
     Console.WriteLine($"User: {userQuery}");
     Console.WriteLine();
 
+    var stopwatch = Stopwatch.StartNew();
     var session = await agent.CreateSessionAsync(cancellationToken);
     var response = await agent.RunAsync(userQuery, session, null, cancellationToken);
+    stopwatch.Stop();
+
+    telemetryClient?.TrackMetric($"{scenarioName}DurationMs", stopwatch.Elapsed.TotalMilliseconds);
+    telemetryClient?.TrackEvent(
+        "AgentDemoCompleted",
+        new Dictionary<string, string>
+        {
+            ["Scenario"] = scenarioName,
+            ["AgentName"] = agent.Name ?? string.Empty,
+        });
 
     Console.WriteLine($"{agent.Name}: {response.Text}");
 }
@@ -120,11 +171,15 @@ static async Task RunAgentDemoAsync(
 static async Task RunMultiAgentWorkflowAsync(
     Workflow workflow,
     string userQuery,
+    TelemetryClient? telemetryClient,
     CancellationToken cancellationToken = default)
 {
     Console.WriteLine($"User: {userQuery}");
     Console.WriteLine();
 
+    var responseCount = 0;
+    var errorCount = 0;
+    var stopwatch = Stopwatch.StartNew();
     var sessionId = Guid.NewGuid().ToString();
     StreamingRun streamingRun = await InProcessExecution.RunStreamingAsync(
         workflow,
@@ -137,15 +192,31 @@ static async Task RunMultiAgentWorkflowAsync(
         switch (evt)
         {
             case AgentResponseEvent agentResponse:
+                responseCount++;
                 Console.WriteLine($"[{agentResponse.ExecutorId}]: {agentResponse.Response.Text}");
                 Console.WriteLine();
                 break;
 
             case WorkflowErrorEvent errorEvent:
+                errorCount++;
                 Console.Error.WriteLine($"[ERROR]: {errorEvent.Exception?.Message}");
                 break;
         }
     }
+
+    stopwatch.Stop();
+    telemetryClient?.TrackMetric("MultiAgentWorkflowDurationMs", stopwatch.Elapsed.TotalMilliseconds);
+    telemetryClient?.TrackMetric("MultiAgentWorkflowResponseCount", responseCount);
+    telemetryClient?.TrackMetric("MultiAgentWorkflowErrorCount", errorCount);
+    telemetryClient?.TrackEvent(
+        "MultiAgentWorkflowCompleted",
+        new Dictionary<string, string>
+        {
+            ["WorkflowName"] = workflow.Name ?? string.Empty,
+            ["SessionId"] = sessionId,
+            ["ResponseCount"] = responseCount.ToString(),
+            ["ErrorCount"] = errorCount.ToString(),
+        });
 }
 
 static Uri ResolveFoundryOpenAIEndpoint(string projectEndpoint)
@@ -179,4 +250,34 @@ static DefaultAzureCredential CreateCredential(string? tenantId)
         {
             TenantId = tenantId,
         });
+}
+
+static TelemetryClient? CreateTelemetryClient(string? connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return null;
+    }
+
+    var configuration = TelemetryConfiguration.CreateDefault();
+    configuration.ConnectionString = connectionString;
+    return new TelemetryClient(configuration);
+}
+
+static void RegisterExceptionTelemetryHandlers(TelemetryClient telemetryClient)
+{
+    AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+    {
+        if (args.ExceptionObject is Exception exception)
+        {
+            telemetryClient.TrackException(exception);
+            telemetryClient.Flush();
+        }
+    };
+
+    TaskScheduler.UnobservedTaskException += (_, args) =>
+    {
+        telemetryClient.TrackException(args.Exception);
+        telemetryClient.Flush();
+    };
 }

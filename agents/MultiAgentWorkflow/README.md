@@ -104,6 +104,9 @@ Example local file:
     "TenantId": "YOUR-TENANT-ID",
     "Deployment": "gpt-4o"
   },
+  "ApplicationInsights": {
+    "ConnectionString": "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
+  },
   "APIM": {
     "GatewayUrl": "https://YOUR-APIM.azure-api.net"
   }
@@ -121,16 +124,20 @@ You can also use environment variables (override both JSON files):
 export Foundry__ProjectEndpoint="https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
 export Foundry__TenantId="YOUR-TENANT-ID"
 export Foundry__Deployment="gpt-4o"
+export ApplicationInsights__ConnectionString="InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
 export APIM__GatewayUrl="https://YOUR-APIM.azure-api.net"
 
 # PowerShell
 $env:Foundry__ProjectEndpoint = "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
 $env:Foundry__TenantId = "YOUR-TENANT-ID"
 $env:Foundry__Deployment = "gpt-4o"
+$env:ApplicationInsights__ConnectionString = "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
 $env:APIM__GatewayUrl = "https://YOUR-APIM.azure-api.net"
 ```
 
 `Foundry:TenantId` is optional but recommended in multi-tenant dev environments to ensure `DefaultAzureCredential` acquires a token from the correct tenant.
+
+`ApplicationInsights:ConnectionString` is optional. If set, the console app emits startup/completion events and unhandled exceptions to Application Insights.
 
 The application authenticates to Azure OpenAI using [`DefaultAzureCredential`](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential).  
 Run `az login` before starting the app when developing locally.
@@ -188,6 +195,48 @@ User: What Electronics products are available and what is the current weather in
 [WeatherAgent]: Current weather in London: Partly cloudy, 15.2°C ...
 ```
 
+## Agent Telemetry Queries (KQL)
+
+Use these queries in the Application Insights **Logs** pane to inspect telemetry emitted by the agent process.
+
+### Agent lifecycle events
+
+```kusto
+customEvents
+| where timestamp > ago(24h)
+| where name in ("ApplicationStarted", "AgentsConnected", "ApplicationCompleted", "ApplicationFailed")
+| project timestamp, name, customDimensions
+| order by timestamp desc
+```
+
+### Demo and workflow duration metrics
+
+```kusto
+customMetrics
+| where timestamp > ago(24h)
+| where name in ("AgentSetupDurationMs", "ProductsAgentDemoDurationMs", "WeatherAgentDemoDurationMs", "MultiAgentWorkflowDurationMs")
+| summarize avg_value = avg(value), p95_value = percentile(value, 95), samples = count() by name
+| order by name asc
+```
+
+### Workflow response and error counts
+
+```kusto
+customMetrics
+| where timestamp > ago(24h)
+| where name in ("MultiAgentWorkflowResponseCount", "MultiAgentWorkflowErrorCount")
+| summarize total = sum(value), samples = count() by name
+```
+
+### Exceptions captured by the agent
+
+```kusto
+exceptions
+| where timestamp > ago(24h)
+| project timestamp, type, outerMessage, operation_Id
+| order by timestamp desc
+```
+
 ## NuGet Packages
 
 | Package | Purpose |
@@ -198,3 +247,4 @@ User: What Electronics products are available and what is the current weather in
 | `ModelContextProtocol.Core` | MCP client for connecting to MCP servers |
 | `Azure.AI.OpenAI` | Azure OpenAI SDK |
 | `Azure.Identity` | Azure credential providers (DefaultAzureCredential) |
+| `Microsoft.ApplicationInsights` | Agent process telemetry (events, metrics, exceptions) |
