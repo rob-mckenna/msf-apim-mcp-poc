@@ -353,3 +353,110 @@ resource "azurerm_api_management_api_operation_policy" "products_get" {
     </policies>
   XML
 }
+
+resource "azurerm_api_management_logger" "appinsights" {
+  name                = "applicationinsights"
+  api_management_name = azurerm_api_management.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  resource_id         = azurerm_application_insights.main.id
+
+  application_insights {
+    instrumentation_key = azurerm_application_insights.main.instrumentation_key
+  }
+}
+
+resource "azurerm_api_management_api_diagnostic" "weather" {
+  identifier               = "applicationinsights"
+  resource_group_name      = azurerm_resource_group.main.name
+  api_management_name      = azurerm_api_management.main.name
+  api_name                 = azurerm_api_management_api.weather.name
+  api_management_logger_id = azurerm_api_management_logger.appinsights.id
+
+  always_log_errors           = true
+  log_client_ip               = true
+  sampling_percentage         = 100
+  http_correlation_protocol   = "W3C"
+  verbosity                   = "information"
+  operation_name_format       = "Name"
+
+  frontend_request {
+    body_bytes = 0
+    headers_to_log = [
+      "Content-Type",
+      "User-Agent",
+      "x-request-id",
+    ]
+  }
+
+  frontend_response {
+    body_bytes = 512
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+
+  backend_request {
+    body_bytes = 0
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+
+  backend_response {
+    body_bytes = 512
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+}
+
+resource "azurerm_api_management_api_diagnostic" "products" {
+  identifier               = "applicationinsights"
+  resource_group_name      = azurerm_resource_group.main.name
+  api_management_name      = azurerm_api_management.main.name
+  api_name                 = azurerm_api_management_api.products.name
+  api_management_logger_id = azurerm_api_management_logger.appinsights.id
+
+  always_log_errors           = true
+  log_client_ip               = true
+  sampling_percentage         = 100
+  http_correlation_protocol   = "W3C"
+  verbosity                   = "information"
+  operation_name_format       = "Name"
+
+  frontend_request {
+    body_bytes = 0
+    headers_to_log = [
+      "Content-Type",
+      "User-Agent",
+      "x-request-id",
+    ]
+  }
+
+  frontend_response {
+    body_bytes = 512
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+
+  backend_request {
+    body_bytes = 0
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+
+  backend_response {
+    body_bytes = 512
+    headers_to_log = [
+      "Content-Type",
+      "x-request-id",
+    ]
+  }
+}

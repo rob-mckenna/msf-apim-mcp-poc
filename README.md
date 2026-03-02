@@ -17,6 +17,7 @@ This repository contains:
 | **Microsoft Foundry Resource** | AI services account (`Microsoft.CognitiveServices/accounts`) used as the parent for Foundry projects |
 | **Microsoft Foundry Project** | Project workspace (`Microsoft.CognitiveServices/accounts/projects`) for AI assets and deployments |
 | **Azure API Management (Standard v2)** | APIM gateway hosting the mock APIs and MCP servers |
+| **Application Insights** | Central telemetry sink for APIM API diagnostics and request traces |
 | **Weather API** | Mock REST API with two operations and static JSON responses |
 | **Products API** | Mock REST API with two operations and static JSON responses |
 | **Weather MCP Server** | APIM MCP server exposing the Weather API as AI-consumable tools |
@@ -181,6 +182,7 @@ Key outputs:
 | `products_mcp_endpoint` | MCP endpoint for the Products API |
 | `foundry_resource_id` | Resource ID of the Microsoft Foundry resource |
 | `foundry_project_id` | Resource ID of the Microsoft Foundry Project |
+| `application_insights_id` | Resource ID of the Application Insights instance |
 
 ### 6. Test the mock APIs
 
@@ -297,6 +299,64 @@ tags = {
 terraform destroy
 ```
 
+## Application Insights Queries (KQL)
+
+After deployment, APIM API diagnostics are sent to Application Insights. Use these KQL queries in the Logs pane.
+
+### Recent APIM requests (last 30 minutes)
+
+```kusto
+requests
+| where timestamp > ago(30m)
+| where cloud_RoleName contains "apim"
+| project timestamp, name, resultCode, duration, success, operation_Id
+| order by timestamp desc
+```
+
+### Failed APIM requests
+
+```kusto
+requests
+| where timestamp > ago(24h)
+| where cloud_RoleName contains "apim"
+| where success == false or toint(resultCode) >= 400
+| project timestamp, name, resultCode, duration, operation_Id
+| order by timestamp desc
+```
+
+### APIM request volume and latency by API operation
+
+```kusto
+requests
+| where timestamp > ago(24h)
+| where cloud_RoleName contains "apim"
+| summarize request_count = count(), avg_duration_ms = avg(duration), p95_duration_ms = percentile(duration, 95) by name
+| order by request_count desc
+```
+
+### Weather vs Products API traffic
+
+```kusto
+requests
+| where timestamp > ago(24h)
+| where cloud_RoleName contains "apim"
+| extend api_group = case(name contains "weather", "weather", name contains "products", "products", "other")
+| summarize requests = count(), errors = countif(success == false or toint(resultCode) >= 400) by api_group
+| order by requests desc
+```
+
+### MCP endpoint traffic and errors (when MCP servers are enabled)
+
+```kusto
+requests
+| where timestamp > ago(24h)
+| where cloud_RoleName contains "apim"
+| where url has "/weather-mcp/mcp" or url has "/products-mcp/mcp"
+| extend mcp_endpoint = case(url has "/weather-mcp/mcp", "weather-mcp", url has "/products-mcp/mcp", "products-mcp", "other")
+| summarize requests = count(), errors = countif(success == false or toint(resultCode) >= 400), p95_duration_ms = percentile(duration, 95) by mcp_endpoint
+| order by requests desc
+```
+
 ## Multi-Agent Workflow (.NET 8)
 
 The [`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md) directory contains a .NET 8 console application built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that demonstrates the APIM MCP servers in action.
@@ -333,8 +393,8 @@ See [`agents/MultiAgentWorkflow/README.md`](agents/MultiAgentWorkflow/README.md)
 terraform/
 ├── providers.tf      # Provider configuration (azurerm ~> 4.0, azapi ~> 2.0, random ~> 3.0)
 ├── variables.tf      # Input variables with defaults
-├── main.tf           # Core infrastructure: RG, Microsoft Foundry resource + project, APIM
-├── apis.tf           # Weather API and Products API with mock response policies
+├── main.tf           # Core infrastructure: RG, Microsoft Foundry resource + project, APIM, Application Insights
+├── apis.tf           # Weather/Products APIs, mock policies, APIM logger and diagnostics
 ├── mcp-servers.tf    # MCP server resources (azapi_resource – preview ARM feature)
 └── outputs.tf        # Key resource outputs
 ```

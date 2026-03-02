@@ -52,3 +52,19 @@ output "foundry_project_name" {
   description = "Name of the Microsoft Foundry Project."
   value       = azapi_resource.foundry_project.name
 }
+
+output "application_insights_id" {
+  description = "Resource ID of the Application Insights instance used by APIM diagnostics."
+  value       = azurerm_application_insights.main.id
+}
+
+output "application_insights_name" {
+  description = "Name of the Application Insights instance used by APIM diagnostics."
+  value       = azurerm_application_insights.main.name
+}
+
+output "application_insights_connection_string" {
+  description = "Connection string for the Application Insights instance used by APIM diagnostics."
+  value       = azurerm_application_insights.main.connection_string
+  sensitive   = true
+}

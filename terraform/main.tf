@@ -83,3 +83,11 @@ resource "azurerm_api_management" "main" {
     type = "SystemAssigned"
   }
 }
+
+resource "azurerm_application_insights" "main" {
+  name                = "appi-mcp-poc-${random_string.suffix.result}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  application_type    = "web"
+  tags                = var.tags
+}
