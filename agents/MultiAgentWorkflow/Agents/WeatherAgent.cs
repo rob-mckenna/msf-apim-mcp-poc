@@ -38,7 +38,6 @@ public static class WeatherAgent
         var transport = new HttpClientTransport(new HttpClientTransportOptions
         {
             Endpoint = mcpEndpoint,
-            TransportMode = HttpTransportMode.Sse,
             Name = "weather-mcp",
         });
 

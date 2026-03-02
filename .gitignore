@@ -39,3 +39,22 @@ terraform.rc
 # .NET build artifacts
 agents/**/bin/
 agents/**/obj/
+
+# .NET / Visual Studio
+**/[Bb]in/
+**/[Oo]bj/
+.vs/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET test results
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Local app settings
+**/appsettings.local.json

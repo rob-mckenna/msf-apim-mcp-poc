@@ -39,7 +39,9 @@ A .NET 8 console application that implements a multi-agent workflow using the [M
 MultiAgentWorkflow/
 ├── MultiAgentWorkflow.csproj   # Project file with NuGet dependencies
 ├── Program.cs                  # Entry point: creates agents, runs demos
-├── appsettings.json            # Configuration (endpoint, deployment, APIM URL)
+├── appsettings.json            # Baseline configuration (safe defaults/placeholders)
+├── appsettings.local.json      # Local developer overrides (gitignored)
+├── appsettings.local.json.example # Template for local overrides
 ├── Agents/
 │   ├── ProductsAgent.cs        # Products specialist agent factory
 │   └── WeatherAgent.cs         # Weather specialist agent factory
@@ -79,18 +81,27 @@ The workflow uses `AgentWorkflowBuilder.BuildSequential` to chain both agents:
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
-- An Azure OpenAI deployment (e.g. `gpt-4o`) in your Azure subscription
+- A Microsoft Foundry project with a model deployment (e.g. `gpt-4o`)
 - The APIM instance from this repository deployed with MCP servers enabled
   (`enable_apim_mcp_servers = true`)
 
 ## Configuration
 
-Copy `appsettings.json` and update with your values:
+Set up local config:
+
+1. Keep `appsettings.json` as baseline.
+2. Copy `appsettings.local.json.example` to `appsettings.local.json`.
+3. Put your machine-specific values in `appsettings.local.json`.
+
+`appsettings.local.json` is loaded after `appsettings.json` and overrides it.
+
+Example local file:
 
 ```json
 {
-  "AzureOpenAI": {
-    "Endpoint": "https://YOUR-RESOURCE.openai.azure.com/",
+  "Foundry": {
+    "ProjectEndpoint": "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME",
+    "TenantId": "YOUR-TENANT-ID",
     "Deployment": "gpt-4o"
   },
   "APIM": {
@@ -99,19 +110,27 @@ Copy `appsettings.json` and update with your values:
 }
 ```
 
-You can also use environment variables (override `appsettings.json`):
+`ProjectEndpoint` must be the Foundry project URL format:
+
+`https://<resource-name>.services.ai.azure.com/api/projects/<project-name>`
+
+You can also use environment variables (override both JSON files):
 
 ```bash
 # Linux / macOS
-export AzureOpenAI__Endpoint="https://YOUR-RESOURCE.openai.azure.com/"
-export AzureOpenAI__Deployment="gpt-4o"
+export Foundry__ProjectEndpoint="https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
+export Foundry__TenantId="YOUR-TENANT-ID"
+export Foundry__Deployment="gpt-4o"
 export APIM__GatewayUrl="https://YOUR-APIM.azure-api.net"
 
 # PowerShell
-$env:AzureOpenAI__Endpoint = "https://YOUR-RESOURCE.openai.azure.com/"
-$env:AzureOpenAI__Deployment = "gpt-4o"
+$env:Foundry__ProjectEndpoint = "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
+$env:Foundry__TenantId = "YOUR-TENANT-ID"
+$env:Foundry__Deployment = "gpt-4o"
 $env:APIM__GatewayUrl = "https://YOUR-APIM.azure-api.net"
 ```
+
+`Foundry:TenantId` is optional but recommended in multi-tenant dev environments to ensure `DefaultAzureCredential` acquires a token from the correct tenant.
 
 The application authenticates to Azure OpenAI using [`DefaultAzureCredential`](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential).  
 Run `az login` before starting the app when developing locally.

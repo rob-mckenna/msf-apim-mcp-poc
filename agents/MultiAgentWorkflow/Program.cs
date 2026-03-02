@@ -14,33 +14,37 @@ using OpenAI.Chat;
 // ---------------------------------------------------------------------------
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+    .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false)
     .AddEnvironmentVariables()
     .Build();
 
-var azureOpenAIEndpoint = configuration["AzureOpenAI:Endpoint"]
+var foundryProjectEndpoint = configuration["Foundry:ProjectEndpoint"]
     ?? throw new InvalidOperationException(
-        "Missing configuration: AzureOpenAI:Endpoint. " +
-        "Set it in appsettings.json or via the AZUREOPENAI__ENDPOINT environment variable.");
+        "Missing configuration: Foundry:ProjectEndpoint. " +
+        "Set it in appsettings.json, appsettings.local.json, or via the FOUNDRY__PROJECTENDPOINT environment variable.");
 
-var azureOpenAIDeployment = configuration["AzureOpenAI:Deployment"]
+var modelDeployment = configuration["Foundry:Deployment"]
     ?? throw new InvalidOperationException(
-        "Missing configuration: AzureOpenAI:Deployment. " +
-        "Set it in appsettings.json or via the AZUREOPENAI__DEPLOYMENT environment variable.");
+        "Missing configuration: Foundry:Deployment. " +
+        "Set it in appsettings.json, appsettings.local.json, or via the FOUNDRY__DEPLOYMENT environment variable.");
 
 var apimGatewayUrl = configuration["APIM:GatewayUrl"]
     ?? throw new InvalidOperationException(
         "Missing configuration: APIM:GatewayUrl. " +
-        "Set it in appsettings.json or via the APIM__GATEWAYURL environment variable.");
+        "Set it in appsettings.json, appsettings.local.json, or via the APIM__GATEWAYURL environment variable.");
+
+var foundryOpenAIEndpoint = ResolveFoundryOpenAIEndpoint(foundryProjectEndpoint);
+var foundryTenantId = configuration["Foundry:TenantId"];
 
 // ---------------------------------------------------------------------------
 // Azure OpenAI client
 // Uses DefaultAzureCredential (supports az login, managed identity, env vars).
 // ---------------------------------------------------------------------------
 var openAIClient = new AzureOpenAIClient(
-    new Uri(azureOpenAIEndpoint),
-    new DefaultAzureCredential());
+    foundryOpenAIEndpoint,
+    CreateCredential(foundryTenantId));
 
-ChatClient chatClient = openAIClient.GetChatClient(azureOpenAIDeployment);
+ChatClient chatClient = openAIClient.GetChatClient(modelDeployment);
 
 // ---------------------------------------------------------------------------
 // Individual Agents
@@ -142,4 +146,37 @@ static async Task RunMultiAgentWorkflowAsync(
                 break;
         }
     }
+}
+
+static Uri ResolveFoundryOpenAIEndpoint(string projectEndpoint)
+{
+    if (!Uri.TryCreate(projectEndpoint, UriKind.Absolute, out var parsed))
+    {
+        throw new InvalidOperationException(
+            "Invalid Foundry project endpoint format. " +
+            "Expected format: https://<resource-name>.services.ai.azure.com/api/projects/<project-name>");
+    }
+
+    if (!parsed.Host.EndsWith(".services.ai.azure.com", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Foundry project endpoint must use a Microsoft Foundry domain (*.services.ai.azure.com). " +
+            "Legacy Azure OpenAI endpoints (*.openai.azure.com) aren't supported in this solution.");
+    }
+
+    return new Uri($"{parsed.Scheme}://{parsed.Host}");
+}
+
+static DefaultAzureCredential CreateCredential(string? tenantId)
+{
+    if (string.IsNullOrWhiteSpace(tenantId))
+    {
+        return new DefaultAzureCredential();
+    }
+
+    return new DefaultAzureCredential(
+        new DefaultAzureCredentialOptions
+        {
+            TenantId = tenantId,
+        });
 }
