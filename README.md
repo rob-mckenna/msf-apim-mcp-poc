@@ -4,7 +4,12 @@ POC demonstrating Microsoft AI Foundry, Azure API Management (APIM) MCP Servers,
 
 ## Overview
 
-This repository contains Terraform infrastructure-as-code that provisions:
+This repository contains:
+
+1. **Terraform infrastructure** that provisions the Azure resources (APIM, APIs, MCP servers, AI Foundry).
+2. **A .NET 8 multi-agent application** ([`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md)) built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that connects to the APIM MCP servers.
+
+### Infrastructure Resources
 
 | Resource | Description |
 |---|---|
@@ -291,6 +296,36 @@ tags = {
 ```bash
 terraform destroy
 ```
+
+## Multi-Agent Workflow (.NET 8)
+
+The [`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md) directory contains a .NET 8 console application built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that demonstrates the APIM MCP servers in action.
+
+### Agents
+
+| Agent | MCP Server | Tools |
+|---|---|---|
+| **ProductsAgent** | `/products-mcp/mcp` | `list-products`, `get-product-by-id` |
+| **WeatherAgent** | `/weather-mcp/mcp` | `get-current-weather`, `get-weather-forecast` |
+
+### Workflow
+
+A sequential multi-agent workflow (`AgentWorkflowBuilder.BuildSequential`) chains both agents so that a single query can be answered by both specialists in turn.
+
+### Quick Start
+
+```bash
+# Set configuration
+export AzureOpenAI__Endpoint="https://YOUR-RESOURCE.openai.azure.com/"
+export AzureOpenAI__Deployment="gpt-4o"
+export APIM__GatewayUrl="$(cd terraform && terraform output -raw apim_gateway_url)"
+
+# Run
+cd agents/MultiAgentWorkflow
+dotnet run
+```
+
+See [`agents/MultiAgentWorkflow/README.md`](agents/MultiAgentWorkflow/README.md) for full documentation.
 
 ## Terraform File Structure
 
