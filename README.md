@@ -381,8 +381,10 @@ A sequential multi-agent workflow (`AgentWorkflowBuilder.BuildSequential`) chain
 
 ```bash
 # Set configuration
-export AzureOpenAI__Endpoint="https://YOUR-RESOURCE.openai.azure.com/"
-export AzureOpenAI__Deployment="gpt-4o"
+export FOUNDRY_RESOURCE="$(cd terraform && terraform output -raw foundry_resource_name)"
+export FOUNDRY_PROJECT="$(cd terraform && terraform output -raw foundry_project_name)"
+export Foundry__ProjectEndpoint="https://${FOUNDRY_RESOURCE}.services.ai.azure.com/api/projects/${FOUNDRY_PROJECT}"
+export Foundry__Deployment="gpt-4o"
 export APIM__GatewayUrl="$(cd terraform && terraform output -raw apim_gateway_url)"
 
 # Run
