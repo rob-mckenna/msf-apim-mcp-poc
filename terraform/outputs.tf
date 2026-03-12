@@ -33,6 +33,17 @@ output "products_mcp_endpoint" {
   value       = var.enable_apim_mcp_servers ? "${azurerm_api_management.main.gateway_url}/products-mcp/mcp" : null
 }
 
+output "apim_mcp_precheck" {
+  description = "APIM MCP precheck status for troubleshooting (CLI install/login and mcpServers availability)."
+  value = {
+    enabled                 = var.enable_apim_mcp_precheck
+    az_cli_installed        = local.apim_mcp_precheck_az_cli_installed
+    az_logged_in            = local.apim_mcp_precheck_az_logged_in
+    resource_type_available = local.apim_mcp_precheck_resource_type_available
+    error_message           = local.apim_mcp_precheck_error_message
+  }
+}
+
 output "foundry_resource_id" {
   description = "Resource ID of the Microsoft Foundry resource (AIServices account)."
   value       = azapi_resource.foundry.id

@@ -37,7 +37,13 @@ variable "foundry_project_name" {
 variable "enable_apim_mcp_servers" {
   description = "Enable APIM MCP server resources (requires Microsoft.ApiManagement/service/mcpServers availability in your subscription/region)."
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "enable_apim_mcp_precheck" {
+  description = "Enable APIM MCP precheck validation (Azure CLI availability/login and mcpServers resource type discovery)."
+  type        = bool
+  default     = true
 }
 
 variable "tags" {

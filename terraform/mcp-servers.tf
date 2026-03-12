@@ -49,6 +49,7 @@ resource "azapi_resource" "weather_mcp_server" {
   schema_validation_enabled = false
 
   depends_on = [
+    terraform_data.validate_apim_mcp_precheck,
     azurerm_api_management_api_operation.weather_current,
     azurerm_api_management_api_operation.weather_forecast,
     azurerm_api_management_api_operation_policy.weather_current,
@@ -86,6 +87,7 @@ resource "azapi_resource" "products_mcp_server" {
   schema_validation_enabled = false
 
   depends_on = [
+    terraform_data.validate_apim_mcp_precheck,
     azurerm_api_management_api_operation.products_list,
     azurerm_api_management_api_operation.products_get,
     azurerm_api_management_api_operation_policy.products_list,
