@@ -37,6 +37,11 @@ var apimGatewayUrl = configuration["APIM:GatewayUrl"]
         "Missing configuration: APIM:GatewayUrl. " +
         "Set it in appsettings.json, appsettings.local.json, or via the APIM__GATEWAYURL environment variable.");
 
+var apimSubscriptionKey = configuration["APIM:SubscriptionKey"]
+    ?? throw new InvalidOperationException(
+        "Missing configuration: APIM:SubscriptionKey. " +
+        "Set it in appsettings.local.json or via the APIM__SUBSCRIPTIONKEY environment variable.");
+
 var foundryOpenAIEndpoint = ResolveFoundryOpenAIEndpoint(foundryProjectEndpoint);
 var foundryTenantId = configuration["Foundry:TenantId"];
 var appInsightsConnectionString = configuration["ApplicationInsights:ConnectionString"];
@@ -65,10 +70,10 @@ try
     Console.WriteLine("Connecting to APIM MCP servers and creating agents...");
     var setupStopwatch = Stopwatch.StartNew();
 
-    var productsAgent = await ProductsAgent.CreateAsync(chatClient, apimGatewayUrl);
+    var productsAgent = await ProductsAgent.CreateAsync(chatClient, apimGatewayUrl, apimSubscriptionKey);
     Console.WriteLine($"  ✓ {productsAgent.Name} ready");
 
-    var weatherAgent = await WeatherAgent.CreateAsync(chatClient, apimGatewayUrl);
+    var weatherAgent = await WeatherAgent.CreateAsync(chatClient, apimGatewayUrl, apimSubscriptionKey);
     Console.WriteLine($"  ✓ {weatherAgent.Name} ready");
 
     setupStopwatch.Stop();

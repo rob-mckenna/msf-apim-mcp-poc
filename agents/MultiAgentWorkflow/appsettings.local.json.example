@@ -1,13 +1,14 @@
 {
   "Foundry": {
     "ProjectEndpoint": "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME",
-    "TenantId": "YOUR-TENANT-ID",
+    "TenantId": "",
     "Deployment": "gpt-4o"
   },
   "ApplicationInsights": {
     "ConnectionString": "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
   },
   "APIM": {
-    "GatewayUrl": "https://YOUR-APIM.azure-api.net"
+    "GatewayUrl": "https://YOUR-APIM.azure-api.net",
+    "SubscriptionKey": "YOUR-APIM-SUBSCRIPTION-KEY"
   }
 }

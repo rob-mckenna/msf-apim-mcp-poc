@@ -101,14 +101,15 @@ Example local file:
 {
   "Foundry": {
     "ProjectEndpoint": "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME",
-    "TenantId": "YOUR-TENANT-ID",
+    "TenantId": "",
     "Deployment": "gpt-4o"
   },
   "ApplicationInsights": {
     "ConnectionString": "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
   },
   "APIM": {
-    "GatewayUrl": "https://YOUR-APIM.azure-api.net"
+    "GatewayUrl": "https://YOUR-APIM.azure-api.net",
+    "SubscriptionKey": "YOUR-APIM-SUBSCRIPTION-KEY"
   }
 }
 ```
@@ -122,17 +123,21 @@ You can also use environment variables (override both JSON files):
 ```bash
 # Linux / macOS
 export Foundry__ProjectEndpoint="https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
+# Optional: set only when your dev account can access multiple tenants.
 export Foundry__TenantId="YOUR-TENANT-ID"
 export Foundry__Deployment="gpt-4o"
 export ApplicationInsights__ConnectionString="InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
 export APIM__GatewayUrl="https://YOUR-APIM.azure-api.net"
+export APIM__SubscriptionKey="YOUR-APIM-SUBSCRIPTION-KEY"
 
 # PowerShell
 $env:Foundry__ProjectEndpoint = "https://YOUR-RESOURCE.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME"
+# Optional: set only when your dev account can access multiple tenants.
 $env:Foundry__TenantId = "YOUR-TENANT-ID"
 $env:Foundry__Deployment = "gpt-4o"
 $env:ApplicationInsights__ConnectionString = "InstrumentationKey=YOUR-INSTRUMENTATION-KEY;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/"
 $env:APIM__GatewayUrl = "https://YOUR-APIM.azure-api.net"
+$env:APIM__SubscriptionKey = "YOUR-APIM-SUBSCRIPTION-KEY"
 ```
 
 `Foundry:TenantId` is optional but recommended in multi-tenant dev environments to ensure `DefaultAzureCredential` acquires a token from the correct tenant.
@@ -149,6 +154,16 @@ After running `terraform apply` in the `terraform/` directory:
 ```bash
 cd terraform
 terraform output apim_gateway_url
+```
+
+### Retrieving an APIM Subscription Key
+
+The MCP endpoints in this sample require an APIM subscription key.
+
+```bash
+az rest --method post \
+  --uri "https://management.azure.com/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.ApiManagement/service/<apim-service-name>/subscriptions/master/listSecrets?api-version=2025-03-01-preview" \
+  --query primaryKey -o tsv
 ```
 
 ## Running the Application

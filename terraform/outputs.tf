@@ -34,7 +34,7 @@ output "products_mcp_endpoint" {
 }
 
 output "apim_mcp_precheck" {
-  description = "APIM MCP precheck status for troubleshooting (CLI install/login and mcpServers availability)."
+  description = "APIM MCP precheck status for troubleshooting (CLI install/login and service/apis availability)."
   value = {
     enabled                 = var.enable_apim_mcp_precheck
     az_cli_installed        = local.apim_mcp_precheck_az_cli_installed

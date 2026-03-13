@@ -31,6 +31,7 @@ public static class WeatherAgent
     public static async Task<ChatClientAgent> CreateAsync(
         ChatClient chatClient,
         string apimGatewayUrl,
+        string apimSubscriptionKey,
         CancellationToken cancellationToken = default)
     {
         var mcpEndpoint = new Uri($"{apimGatewayUrl.TrimEnd('/')}/weather-mcp/mcp");
@@ -39,6 +40,10 @@ public static class WeatherAgent
         {
             Endpoint = mcpEndpoint,
             Name = "weather-mcp",
+            AdditionalHeaders = new Dictionary<string, string>
+            {
+                ["Ocp-Apim-Subscription-Key"] = apimSubscriptionKey,
+            },
         });
 
         var mcpClient = await McpClient.CreateAsync(

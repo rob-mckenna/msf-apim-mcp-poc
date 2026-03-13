@@ -35,7 +35,7 @@ variable "foundry_project_name" {
 }
 
 variable "enable_apim_mcp_servers" {
-  description = "Enable APIM MCP server resources (requires Microsoft.ApiManagement/service/mcpServers availability in your subscription/region)."
+  description = "Enable APIM MCP API resources (implemented as Microsoft.ApiManagement/service/apis with properties.type='mcp')."
   type        = bool
   default     = true
 }
