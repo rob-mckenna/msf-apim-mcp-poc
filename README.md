@@ -7,7 +7,7 @@ POC demonstrating Microsoft AI Foundry, Azure API Management (APIM) MCP Servers,
 This repository contains:
 
 1. **Terraform infrastructure** that provisions the Azure resources (APIM, APIs, MCP servers, AI Foundry).
-2. **A .NET 8 multi-agent application** ([`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md)) built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that connects to the APIM MCP servers.
+2. **A .NET 10 multi-agent application** ([`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md)) built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that connects to the APIM MCP servers.
 
 ### Infrastructure Resources
 
@@ -35,7 +35,7 @@ This repository contains:
 │           │                                                                  │
 │           v                                                                  │
 │┌────────────────────────────────────────────────────┐                        │
-││ .NET 8 App: agents/MultiAgentWorkflow              │                        │
+││ .NET 10 App: agents/MultiAgentWorkflow             │                        │
 ││  MultiAgentOrchestratorAgent                       │                        │
 ││   ├─ WeatherAgent  ── MCP /weather-mcp/mcp  ──┐    │                        │
 ││   └─ ProductsAgent ── MCP /products-mcp/mcp ──┘    │                        │
@@ -362,9 +362,9 @@ requests
 | order by requests desc
 ```
 
-## Multi-Agent Workflow (.NET 8)
+## Multi-Agent Workflow (.NET 10)
 
-The [`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md) directory contains a .NET 8 console application built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that demonstrates the APIM MCP servers in action.
+The [`agents/MultiAgentWorkflow`](agents/MultiAgentWorkflow/README.md) directory contains a .NET 10 console application built with the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework) that demonstrates the APIM MCP servers in action.
 
 ### Agents
 

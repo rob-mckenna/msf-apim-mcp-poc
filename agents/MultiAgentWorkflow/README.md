@@ -1,6 +1,6 @@
 # Multi-Agent Workflow
 
-A .NET 8 console application that implements a multi-agent workflow using the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework). The agents connect to the **Products** and **Weather** MCP servers exposed by Azure API Management (APIM) in this repository.
+A .NET 10 console application that implements a multi-agent workflow using the [Microsoft Agent Framework](https://github.com/microsoft/agent-framework). The agents connect to the **Products** and **Weather** MCP servers exposed by Azure API Management (APIM) in this repository.
 
 ## Architecture
 
@@ -80,7 +80,7 @@ The workflow uses `AgentWorkflowBuilder.BuildSequential` to chain both agents:
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10)
 - A Microsoft Foundry project with a model deployment (e.g. `gpt-4o`)
 - The APIM instance from this repository deployed with MCP servers enabled
   (`enable_apim_mcp_servers = true`)
