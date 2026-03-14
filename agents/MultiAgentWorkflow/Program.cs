@@ -117,7 +117,8 @@ try
         multiAgentWorkflow,
         "What Electronics products are available and what is the current weather in London? " +
         "I want both product and weather information.",
-        telemetryClient);
+        telemetryClient,
+        [productsAgent, weatherAgent]);
 
     telemetryClient?.TrackEvent("ApplicationCompleted");
 }
@@ -177,6 +178,7 @@ static async Task RunMultiAgentWorkflowAsync(
     Workflow workflow,
     string userQuery,
     TelemetryClient? telemetryClient,
+    IReadOnlyList<ChatClientAgent> fallbackAgents,
     CancellationToken cancellationToken = default)
 {
     Console.WriteLine($"User: {userQuery}");
@@ -202,10 +204,91 @@ static async Task RunMultiAgentWorkflowAsync(
                 Console.WriteLine();
                 break;
 
+            case AgentResponseUpdateEvent updateEvent:
+                responseCount++;
+                Console.WriteLine($"[{updateEvent.ExecutorId}]: {updateEvent.AsResponse().Text}");
+                Console.WriteLine();
+                break;
+
+            case WorkflowOutputEvent workflowOutput:
+                responseCount++;
+                if (workflowOutput.Is<AgentResponse>(out var response))
+                {
+                    Console.WriteLine($"[{workflowOutput.ExecutorId}]: {response.Text}");
+                }
+                else if (workflowOutput.Is<string>(out var text))
+                {
+                    Console.WriteLine($"[{workflowOutput.ExecutorId}]: {text}");
+                }
+                else
+                {
+                    var output = workflowOutput.AsType(typeof(object));
+                    Console.WriteLine($"[{workflowOutput.ExecutorId}]: {output}");
+                }
+
+                Console.WriteLine();
+                break;
+
             case WorkflowErrorEvent errorEvent:
                 errorCount++;
                 Console.Error.WriteLine($"[ERROR]: {errorEvent.Exception?.Message}");
                 break;
+
+            default:
+                Console.WriteLine($"[EVENT]: {evt.GetType().Name}");
+                break;
+        }
+    }
+
+    if (responseCount == 0)
+    {
+        Console.WriteLine("[INFO]: Workflow completed but emitted no response events.");
+        Console.WriteLine("[INFO]: Running fallback to produce a consolidated response.");
+        Console.WriteLine();
+
+        if (fallbackAgents.Count >= 2)
+        {
+            var productsAgent = fallbackAgents[0];
+            var weatherAgent = fallbackAgents[1];
+
+            var productsPrompt =
+                "Answer only the product-related part of this request. " +
+                "Do not include weather information. Request: " + userQuery;
+
+            var weatherPrompt =
+                "Answer only the weather-related part of this request. " +
+                "Do not include product information. Request: " + userQuery;
+
+            var productsSession = await productsAgent.CreateSessionAsync(cancellationToken);
+            var productsResponse = await productsAgent.RunAsync(productsPrompt, productsSession, null, cancellationToken);
+
+            var weatherSession = await weatherAgent.CreateSessionAsync(cancellationToken);
+            var weatherResponse = await weatherAgent.RunAsync(weatherPrompt, weatherSession, null, cancellationToken);
+
+            responseCount += 2;
+
+            Console.WriteLine("[FallbackCombinedResponse]:");
+            Console.WriteLine();
+            Console.WriteLine("Products:");
+            Console.WriteLine(productsResponse.Text);
+            Console.WriteLine();
+            Console.WriteLine("Weather:");
+            Console.WriteLine(weatherResponse.Text);
+            Console.WriteLine();
+        }
+        else
+        {
+            var fallbackInput = userQuery;
+            foreach (var agent in fallbackAgents)
+            {
+                var session = await agent.CreateSessionAsync(cancellationToken);
+                var response = await agent.RunAsync(fallbackInput, session, null, cancellationToken);
+                responseCount++;
+
+                Console.WriteLine($"[{agent.Name}]: {response.Text}");
+                Console.WriteLine();
+                fallbackInput = response.Text;
+            }
         }
     }
 
